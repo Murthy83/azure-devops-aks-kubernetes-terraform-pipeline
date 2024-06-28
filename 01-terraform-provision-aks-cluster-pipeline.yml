@@ -10,6 +10,14 @@ stages:
       - job: TerraformValidateJob
         continueOnError: false
         steps:
+        - script: |
+            sudo apt-get update
+            sudo apt-get install -y unzip
+          displayName: "Install unzip"
+        - script: |
+            echo "checking contents of terraform-manifests directory"
+            ls -al $(System.DefaultWorkingDirectory)/terraform-manifests
+          displayName: "Check Directory Contents for debugging"
         - task: PublishPipelineArtifact@1
           displayName: Publish Artifacts
           inputs:
