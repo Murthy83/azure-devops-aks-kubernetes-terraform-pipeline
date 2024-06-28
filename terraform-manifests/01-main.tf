@@ -39,7 +39,7 @@ terraform {
 
 # 2. Terraform Provider Block for AzureRM
 provider "azurerm" {
-  version = ">= 3.0.0"  # Replace with the latest version
+  version = "~>= 3.0.0"  # Replace with the latest version
   features {}
 }
 
