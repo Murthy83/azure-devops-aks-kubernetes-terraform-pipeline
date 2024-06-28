@@ -39,10 +39,10 @@ terraform {
 
 # 2. Terraform Provider Block for AzureRM
 provider "azurerm" {
-  features {
-
-  }
+  version = ">= 3.0.0"  # Replace with the latest version
+  features {}
 }
+
 
 # 3. Terraform Resource Block: Define a Random Pet Resource
 resource "random_pet" "aksrandom" {
