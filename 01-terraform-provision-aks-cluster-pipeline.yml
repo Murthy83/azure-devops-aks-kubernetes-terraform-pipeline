@@ -4,20 +4,19 @@ trigger:
 pool:
   name: default
 
+# Define variables for Environments
+variables:
+- name: DEV_ENVIRONMENT
+  value: dev
+- name: QA_ENVIRONMENT
+  value: qa
+
 stages:
   - stage: TerraformValidate
     jobs:
       - job: TerraformValidateJob
         continueOnError: false
         steps:
-        - script: |
-            sudo apt-get update
-            sudo apt-get install -y unzip
-          displayName: "Install unzip"
-        - script: |
-            echo "checking contents of terraform-manifests directory"
-            ls -al $(System.DefaultWorkingDirectory)/terraform-manifests
-          displayName: "Check Directory Contents for debugging"
         - task: PublishPipelineArtifact@1
           displayName: Publish Artifacts
           inputs:
@@ -45,3 +44,59 @@ stages:
             provider: 'azurerm'
             command: 'validate'
             workingDirectory: '$(System.DefaultWorkingDirectory)/terraform-manifests'
+
+# Stage-2: Deploy Stages for Dev & QA
+# Deployment-1: Deploy Dev AKS Cluster
+## Step-1: Define Variables for environments
+## Step-2: Download SSH Secure File
+## Step-3: Terraform Initialize (State Storage to store in Azure Storage Account for Dev AKS Cluster)
+## Step-4: Terraform Plan (Create Plan)
+## Step-5: Terraform Apply (Use the plan created in previous step)
+
+  - stage: DeployAKSClusters
+    jobs:
+      - deployment: DeployDevAKSCluster
+        displayName: "Deploy AKS Cluster"
+        pool:
+          name: default
+        environment: $(DEV_ENVIRONMENT)
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadSecureFile@1
+                  displayName: "Download SSH key"
+                  name: sshkey
+                  inputs:
+                    secureFile: 'aks-terraform-devops-ssh-key-ububtu.pub'
+                - task: TerraformTaskV4@4
+                  inputs:
+                    provider: 'azurerm'
+                    command: 'init'
+                    workingDirectory: '$(Pipeline.Workspace)/terraform-manifests-out'
+                    backendServiceArm: 'terraform-aks-azurerm-svc-con'
+                    backendAzureRmResourceGroupName: 'myRG'
+                    backendAzureRmStorageAccountName: 'mytfstorage1233'
+                    backendAzureRmContainerName: 'devtfstate'
+                    backendAzureRmKey: 'dev.terraform.tfstate'
+
+                - task: TerraformTaskV4@4
+                  displayName: Terraform Plan
+                  inputs:
+                    provider: 'azurerm'
+                    command: 'plan'
+                    workingDirectory: '$(Pipeline.Workspace)/terraform-manifests-out'
+                    commandOptions: '-var ssh_public_key=$(sshkey.secureFilePath) -var environment=$(DEV_ENVIRONMENT) -out $(Pipeline.Workspace)/terraform-manifests-out/$(DEV_ENVIRONMENT)-$(Build.BuildId).out'
+                    environmentServiceNameAzureRM: 'terraform-aks-azurerm-svc-con'
+
+                - task: TerraformTaskV4@4
+                  displayName: Terraform Apply
+                  inputs:
+                    provider: 'azurerm'
+                    command: 'apply'
+                    workingDirectory: '''$(Pipeline.Workspace)/terraform-manifests-out'''
+                    commandOptions: '$(Pipeline.Workspace)/terraform-manifests-out/$(DEV_ENVIRONMENT)-$(Build.BuildId).out'
+                    environmentServiceNameAzureRM: 'terraform-aks-azurerm-svc-con'
+
+
+
